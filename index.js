@@ -44,6 +44,26 @@ async function run() {
       const result = await bookingCollection.insertOne(booking);
       return res.send({ success: true, booking: result });
     });
+    // Set available slots on a particular date
+    app.get("/available", async (req, res) => {
+      const date = req.query.date;
+
+      const services = await serviceCollection.find().toArray();
+      const bookingsOnThatDay = await bookingCollection
+        .find({ date })
+        .toArray();
+
+      services.map((service) => {
+        const bookingsOnThatService = bookingsOnThatDay.filter(
+          (b) => b.treatmentName === service.name
+        );
+        const bookingSlots = bookingsOnThatService.map((s) => s.slot);
+        service.bookedSlots = bookingSlots;
+        service.slots = service.slots.filter((s) => !bookingSlots.includes(s));
+      });
+
+      res.send(services);
+    });
   } finally {
     // await client.close();
   }
