@@ -23,10 +23,26 @@ async function run() {
   try {
     await client.connect();
     const serviceCollection = client.db("dent_care").collection("services");
+    const bookingCollection = client.db("dent_care").collection("bookings");
     // Get all services
     app.get("/services", async (req, res) => {
       const services = await serviceCollection.find().toArray();
       res.send(services);
+    });
+    // Post booking from user
+    app.post("/booking", async (req, res) => {
+      const booking = req.body;
+      const query = {
+        treatmentName: booking.treatmentName,
+        date: booking.date,
+        patientName: booking.patientName,
+      };
+      const exists = await bookingCollection.findOne(query);
+      if (exists) {
+        return res.send({ success: false, booking: exists });
+      }
+      const result = await bookingCollection.insertOne(booking);
+      return res.send({ success: true, booking: result });
     });
   } finally {
     // await client.close();
@@ -35,7 +51,7 @@ async function run() {
 run().catch(console.dir);
 
 app.get("/", (req, res) => {
-  res.send("Hello World from Dent Care");
+  res.send("Hello from Dent Care");
 });
 
 app.listen(port, () => {
