@@ -64,6 +64,13 @@ async function run() {
 
       res.send(services);
     });
+    //Get all bookings of a particular user
+    app.get("/booking", async (req, res) => {
+      const result = await bookingCollection
+        .find({ patientEmail: req.query.email })
+        .toArray();
+      res.send(result);
+    });
   } finally {
     // await client.close();
   }
