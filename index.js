@@ -1,7 +1,7 @@
 const express = require("express");
 const { MongoClient, ServerApiVersion } = require("mongodb");
-const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const cors = require("cors");
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -24,6 +24,7 @@ async function run() {
     await client.connect();
     const serviceCollection = client.db("dent_care").collection("services");
     const bookingCollection = client.db("dent_care").collection("bookings");
+    const userCollection = client.db("dent_care").collection("users");
     // Get all services
     app.get("/services", async (req, res) => {
       const services = await serviceCollection.find().toArray();
@@ -69,6 +70,19 @@ async function run() {
       const result = await bookingCollection
         .find({ patientEmail: req.query.email })
         .toArray();
+      res.send(result);
+    });
+
+    //Post all users info in database
+    app.put("/user/:email", async (req, res) => {
+      const email = req.params.email;
+      const user = req.body;
+      const filter = { email: email };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: user,
+      };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
       res.send(result);
     });
   } finally {
