@@ -18,6 +18,23 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+// Verifying Token From User
+const verifyJWT = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).send({ message: "UnAuthorize Access" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(403).send({ message: "Forbidden Access" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+};
+
 // All operations
 async function run() {
   try {
@@ -30,7 +47,7 @@ async function run() {
       const services = await serviceCollection.find().toArray();
       res.send(services);
     });
-    // Post booking from user
+    // Post booking from user [BookingModal.js]
     app.post("/booking", async (req, res) => {
       const booking = req.body;
       const query = {
@@ -45,7 +62,7 @@ async function run() {
       const result = await bookingCollection.insertOne(booking);
       return res.send({ success: true, booking: result });
     });
-    // Set available slots on a particular date
+    // Set available slots on a particular date [AvailableAppointment.js]
     app.get("/available", async (req, res) => {
       const date = req.query.date;
 
@@ -65,15 +82,19 @@ async function run() {
 
       res.send(services);
     });
-    //Get all bookings of a particular user
-    app.get("/booking", async (req, res) => {
-      const result = await bookingCollection
-        .find({ patientEmail: req.query.email })
-        .toArray();
-      res.send(result);
+    //Get all bookings of a particular user [MyAppointments.js]
+    app.get("/booking", verifyJWT, async (req, res) => {
+      if (req.decoded.email === req.query.email) {
+        const result = await bookingCollection
+          .find({ patientEmail: req.query.email })
+          .toArray();
+        return res.send(result);
+      } else {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
     });
 
-    //Save all users info in database
+    //Save all users (signUP) info in database [useToken.js]
     app.put("/user/:email", async (req, res) => {
       const email = req.params.email;
       const user = req.body;
@@ -89,6 +110,37 @@ async function run() {
         { expiresIn: "1h" }
       );
       res.send({ result, token });
+    });
+    //Make a user admin [AllUsersRow.js]
+    app.put("/user/admin/:email", verifyJWT, async (req, res) => {
+      const filter = { email: req.params.email };
+      const requestorEmail = req.decoded.email;
+      const requestorAccount = await userCollection.findOne({
+        email: requestorEmail,
+      });
+      if (requestorAccount.role === "admin") {
+        const updateDoc = {
+          $set: { role: "admin" },
+        };
+        const result = await userCollection.updateOne(filter, updateDoc);
+        return res.send(result);
+      } else {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+    });
+
+    //Check user admin or not [useAdmin.js]
+    app.get("/user/:email", verifyJWT, async (req, res) => {
+      const user = await userCollection.findOne({
+        email: req.params.email,
+      });
+      const isAdmin = user.role === "admin";
+      res.send({ admin: isAdmin });
+    });
+    //  Get All Users [AllUsers.js]
+    app.get("/users", verifyJWT, async (req, res) => {
+      const users = await userCollection.find().toArray();
+      res.send(users);
     });
   } finally {
     // await client.close();
