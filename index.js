@@ -43,6 +43,19 @@ async function run() {
     const bookingCollection = client.db("dent_care").collection("bookings");
     const userCollection = client.db("dent_care").collection("users");
     const doctorCollection = client.db("dent_care").collection("doctors");
+
+    // Verify admin
+    const verifyAdmin = async (req, res, next) => {
+      const requestorEmail = req.decoded.email;
+      const requestorAccount = await userCollection.findOne({
+        email: requestorEmail,
+      });
+      if (requestorAccount.role === "admin") {
+        next();
+      } else {
+        return res.status(403).send({ message: "Forbidden Access" });
+      }
+    };
     // Get all services
     app.get("/services", verifyJWT, async (req, res) => {
       const services = await serviceCollection
@@ -116,21 +129,13 @@ async function run() {
       res.send({ result, token });
     });
     //Make a user admin [AllUsersRow.js]
-    app.put("/user/admin/:email", verifyJWT, async (req, res) => {
+    app.put("/user/admin/:email", verifyJWT, verifyAdmin, async (req, res) => {
       const filter = { email: req.params.email };
-      const requestorEmail = req.decoded.email;
-      const requestorAccount = await userCollection.findOne({
-        email: requestorEmail,
-      });
-      if (requestorAccount.role === "admin") {
-        const updateDoc = {
-          $set: { role: "admin" },
-        };
-        const result = await userCollection.updateOne(filter, updateDoc);
-        return res.send(result);
-      } else {
-        return res.status(403).send({ message: "Forbidden Access" });
-      }
+      const updateDoc = {
+        $set: { role: "admin" },
+      };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      return res.send(result);
     });
 
     //Check user admin or not [useAdmin.js]
@@ -148,7 +153,7 @@ async function run() {
     });
 
     //  Post Doctors Info [AddDoctor.js]
-    app.post("/doctor", verifyJWT, async (req, res) => {
+    app.post("/doctor", verifyJWT, verifyAdmin, async (req, res) => {
       const result = await doctorCollection.insertOne(req.body);
       res.send({ success: true, result });
     });
