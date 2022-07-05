@@ -42,9 +42,13 @@ async function run() {
     const serviceCollection = client.db("dent_care").collection("services");
     const bookingCollection = client.db("dent_care").collection("bookings");
     const userCollection = client.db("dent_care").collection("users");
+    const doctorCollection = client.db("dent_care").collection("doctors");
     // Get all services
-    app.get("/services", async (req, res) => {
-      const services = await serviceCollection.find().toArray();
+    app.get("/services", verifyJWT, async (req, res) => {
+      const services = await serviceCollection
+        .find()
+        .project({ name: 1 })
+        .toArray();
       res.send(services);
     });
     // Post booking from user [BookingModal.js]
@@ -141,6 +145,12 @@ async function run() {
     app.get("/users", verifyJWT, async (req, res) => {
       const users = await userCollection.find().toArray();
       res.send(users);
+    });
+
+    //  Post Doctors Info [AddDoctor.js]
+    app.post("/doctor", verifyJWT, async (req, res) => {
+      const result = await doctorCollection.insertOne(req.body);
+      res.send({ success: true, result });
     });
   } finally {
     // await client.close();
