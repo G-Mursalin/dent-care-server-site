@@ -157,6 +157,18 @@ async function run() {
       const result = await doctorCollection.insertOne(req.body);
       res.send({ success: true, result });
     });
+    // Get all doctors Data [ManageDoctors.js]
+    app.get("/doctor", verifyJWT, verifyAdmin, async (req, res) => {
+      const doctors = await doctorCollection.find().toArray();
+      res.send(doctors);
+    });
+    // Delete a particular doctor
+    app.delete("/doctor/:email", verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await doctorCollection.deleteOne({
+        email: req.params.email,
+      });
+      res.send(result);
+    });
   } finally {
     // await client.close();
   }
