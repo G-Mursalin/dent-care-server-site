@@ -1,5 +1,5 @@
 const express = require("express");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 require("dotenv").config();
@@ -78,6 +78,13 @@ async function run() {
       }
       const result = await bookingCollection.insertOne(booking);
       return res.send({ success: true, booking: result });
+    });
+    // Find Booking using ID [Payment.js]
+    app.get("/booking/:id", verifyJWT, async (req, res) => {
+      const result = await bookingCollection.findOne({
+        _id: ObjectId(req.params.id),
+      });
+      res.send(result);
     });
     // Set available slots on a particular date [AvailableAppointment.js]
     app.get("/available", async (req, res) => {
@@ -162,7 +169,7 @@ async function run() {
       const doctors = await doctorCollection.find().toArray();
       res.send(doctors);
     });
-    // Delete a particular doctor
+    // Delete a particular doctor [DeleteDoctorModel.js]
     app.delete("/doctor/:email", verifyJWT, verifyAdmin, async (req, res) => {
       const result = await doctorCollection.deleteOne({
         email: req.params.email,
