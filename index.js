@@ -2,6 +2,9 @@ const express = require("express");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
+const stripe = require("stripe")(
+  "sk_test_51L0ewEEKrvYKu07JrE6YzhNJxaZ96ylORH8jg53TCuT9L0S5Muq7STdm8DBHE6l4776mDX2PE9wOVTW4kUcIUjLz00lBHG5xKP"
+);
 require("dotenv").config();
 const app = express();
 const port = process.env.PORT || 5000;
@@ -43,6 +46,7 @@ async function run() {
     const bookingCollection = client.db("dent_care").collection("bookings");
     const userCollection = client.db("dent_care").collection("users");
     const doctorCollection = client.db("dent_care").collection("doctors");
+    const paymentCollection = client.db("dent_care").collection("payments");
 
     // Verify admin
     const verifyAdmin = async (req, res, next) => {
@@ -56,6 +60,37 @@ async function run() {
         return res.status(403).send({ message: "Forbidden Access" });
       }
     };
+    // Stripe Create a PaymentIntent [CheckoutForm.js]
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const service = req.body;
+      const price = service.price;
+      const amount = price * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+    // Update booking payment info [CheckoutForm.js]
+    app.patch("/booking/:id", verifyJWT, async (req, res) => {
+      const id = req.params.id;
+      const payment = req.body;
+      const filter = { _id: ObjectId(id) };
+      const updateDoc = {
+        $set: { paid: true, transactionId: payment.transactionId },
+      };
+
+      const updatedBooking = await bookingCollection.updateOne(
+        filter,
+        updateDoc
+      );
+      const result = await paymentCollection.insertOne(payment);
+
+      res.send(updateDoc);
+    });
     // Get all services
     app.get("/services", verifyJWT, async (req, res) => {
       const services = await serviceCollection
