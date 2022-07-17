@@ -211,6 +211,13 @@ async function run() {
       });
       res.send(result);
     });
+    // Delete a particular User [AllUsersRow.js]
+    app.delete("/user/:email", verifyJWT, verifyAdmin, async (req, res) => {
+      const result = await userCollection.deleteOne({
+        email: req.params.email,
+      });
+      res.send(result);
+    });
   } finally {
     // await client.close();
   }
